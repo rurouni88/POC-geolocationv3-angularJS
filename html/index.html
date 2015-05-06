@@ -32,30 +32,25 @@
     </div>
     <br/>
     <div ng-show="supportsGeo" class="btn-group btn-group-lg">
-        <input id="autocomplete" placeholder="Enter your address" type="text" class="form-control"></input>
+        <input ng-model="address" id="search_address" placeholder="Enter your address" type="text" class="form-control"></input>
         <br/>
+        <div class="alert alert-danger" ng-show="error">
+            <strong>Error: </strong><span ng-bind="error"></span>
+        </div>
         <button type="button" class="btn btn-primary" ng-click="FindPosition()">
             Find My Location
         </button>
         <button type="button" class="btn btn-primary" ng-click="PostPosition()">
-            Post My Location
+            Post Address Location
         </button>
         <button type="button" class="btn btn-primary" ng-click="ClearPosition()">
             Clear Location
         </button>
     </div>
 
-    <div ng-show="position">
-        <pre ng-bind="position|json"/>
-    </div>
-    <div ng-show="address">
-        <pre ng-bind="address|json"/>
-    </div>
-    <div ng-show="urlGeo">
-        <pre ng-bind="urlGeo|json"/>
-    </div>
-    <div ng-show="error">
-        <pre ng-bind="error|json"/>
+    <!-- DEBUG -->
+    <div ng-show="debug">
+        <pre ng-bind="debug|json"/>
     </div>
 </body>
 

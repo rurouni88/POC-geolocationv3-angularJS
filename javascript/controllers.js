@@ -3,18 +3,18 @@
 angular.module('FMLApp.controllers', [])
 .controller("FMLCtrl", function($scope, $http, $window) {
     $scope.supportsGeo = $window.navigator;
-    $scope.position = null;
-    $scope.address = null;
     $scope.error = null;
-    $scope.urlGeo = null;
+    $scope.address = null;
+    $scope.debug = null;
 
     $scope.FindPosition = function() {
+        $scope.error = null;
         window.navigator.geolocation.getCurrentPosition(function(position) {
             $scope.$apply(function() {
-                $scope.position = position;
-                $scope.address = resolveCoordinatesToAddress(position);
-                $scope.urlGeo = resolveGeoEncodeURL(position);
-                return renderMap(position);
+                $scope.debug = position;
+                var geolocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+                $scope.address = resolveCoordinatesToAddress(geolocation);
+                return renderMap(geolocation);
             });
         }, function(error) {
             $scope.$apply(function() {
@@ -24,36 +24,30 @@ angular.module('FMLApp.controllers', [])
     };
     
     $scope.ClearPosition = function() {
-        renderMap();
-        $scope.position = null;
+        $scope.debug = null;
         $scope.address = null;
         $scope.error = null;
-        $scope.urlGeo = null;
-        return renderMap($scope.position);
+        return renderMap();
     }
     
     $scope.PostPosition = function() {
-        if ($scope.urlGeo) {
-/*
-            $http.jsonp($scope.urlGeo + '&prefix=JSON_CALLBACK').success(function(data, status, headers, config){
-                alert(data);
-            }).
-            error(function(data, status, headers, config) {
-                console.log(status);
-            });
-*/
+        $scope.ClearPosition();
+        $scope.address = $('#search_address').val();
+        $scope.debug = $scope.address;
+        if ($scope.address) {
+            resolveAddressToCoordinates($scope.address);
         } else {
-            $scope.ClearPosition();
+            $scope.error = 'No value entered in address';
         }
     }
 
-    $scope.init = $scope.FindPosition();
     initializeAutocomplete();
+    $scope.init = $scope.FindPosition();
 });
 
 function initializeAutocomplete() {
     var autocomplete = new google.maps.places.Autocomplete(
-        /** @type {HTMLInputElement} */(document.getElementById('autocomplete')),
+        /** @type {HTMLInputElement} */(document.getElementById('search_address')),
         { types: ['geocode'] });
 
     google.maps.event.addListener(autocomplete, 'place_changed', function() {
@@ -62,15 +56,14 @@ function initializeAutocomplete() {
 }
 
 // https://developers.google.com/maps/documentation/javascript/
-function renderMap(position) {
+function renderMap(geolocation) {
     var map;
     var mapOptions = {
         mapTypeId: google.maps.MapTypeId.ROADMAP
     };
     map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
     
-    if (position) {
-        var geolocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+    if (geolocation) {
         var marker = renderMarker(map, geolocation);
         marker.setAnimation(google.maps.Animation.BOUNCE);
         map.setZoom(15);
@@ -107,13 +100,11 @@ function renderMarker(map, geolocation) {
     return marker;
 }
 
-// Client side Geocoder
+// Client side Geocoding
 var formatted_address;
-function resolveCoordinatesToAddress(position) {
-    if (position) {
-        var geolocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+function resolveCoordinatesToAddress(geolocation) {
+    if (geolocation) {
         var geocoder = new google.maps.Geocoder();
-
         geocoder.geocode({ 'latLng': geolocation }, function (results, status) {
             if (status == google.maps.GeocoderStatus.OK) {
                 if (results[1]) {
@@ -127,8 +118,34 @@ function resolveCoordinatesToAddress(position) {
             }
         });
     }
+    else {
+        formatted_address = null;
+    }
 
     return formatted_address;
+}
+
+var positon_object;
+function resolveAddressToCoordinates(address) {
+    if (address) {
+        var geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ 'address': address }, function (results, status) {
+            if (status == google.maps.GeocoderStatus.OK) {
+                if (results[0].geometry.location) {
+                    renderMap(results[0].geometry.location);
+                } else {
+                    return 'Location not found';
+                }
+            } else {
+                return 'Geocoder failed due to: ' + status;
+            }
+        });        
+    }
+    else {
+        positon_object = null;
+    }
+    
+    return positon_object;
 }
 
 function toggleMarkerBounce(marker) {
@@ -145,9 +162,16 @@ function returnLocationBlurb(geolocation) {
         '<strong>Longitude:</strong> ' + geolocation.lng();
     return location_blurb;
 }
-function resolveGeoEncodeURL(position) {
+
+function resolveGeoEncodeURLByCoordinates(position) {
     var url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' +
         position.coords.latitude + ',' + position.coords.longitude +
         '&sensor=false';
+    return url;
+}
+
+function resolveGeoEncodeURLByAddress(address) {
+    var url = 'https://maps.google.com/maps/api/geocode/json?address='+
+        address + '&sensor=false';
     return url;
 }
